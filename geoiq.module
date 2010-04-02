@@ -1,0 +1,455 @@
+<?php
+// $Id$
+
+
+/**
+ * Implention of hook_perm()
+ */
+
+function geoiq_perm(){ 
+  $permissions = array(
+    'GeoIQ administer settings', 
+    'GeoIQ administer feeds',
+    'GeoIQ add map to content',
+  );
+
+  return $permissions;
+
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+
+function geoiq_menu() {
+  $items['admin/settings/geoiq'] = array(
+    'title' => 'GeoIQ: Credentials',
+    'description' => 'Set up GeoIQ server address user name and password',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('geoiq_admin_settings'),
+    'access arguments' => array('GeoIQ administer settings'),
+    'type' => MENU_NORMAL_ITEM,  
+    'file' => 'geoiq.admin.inc',
+    
+  );
+
+  $items['admin/settings/geoiqfeeds'] = array(
+    'title' => 'GeoIQ: Add Feeds',
+    'description' => 'Add kml or GeoRss feeds as GeoIQ data sources',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('geoiq_admin_feed_settings'),
+    'access arguments' => array('GeoIQ administer feeds'),
+    'type' => MENU_NORMAL_ITEM,  
+    'file' => 'geoiq.admin.inc',
+    
+  );
+
+    $items['admin/settings/geoiqcontenttypes'] = array(
+    'title' => 'GeoIQ: Content Types',
+    'description' => 'Select which content types can search for and include GeoCommons maps',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('geoiq_admin_nodes'),
+    'access arguments' => array('GeoIQ administer settings'),
+    'type' => MENU_NORMAL_ITEM,  
+    'file' => 'geoiq.admin.inc',
+    
+  );
+
+
+  $items['geocommons/api_search_js'] = array(
+    'page callback' => 'geocommons_search_js',
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('GeoIQ add map to content'),  
+  );
+
+  $items['geocommons/api_add_js'] = array(
+    'page callback' => 'geocommons_add_js',
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('GeoIQ administer feeds'),  
+  );
+ 
+  return $items;
+}
+
+
+/**
+ * Implementing hook_form_alter()
+ */
+
+function addNodeForm($type){
+  return $type . "_node_form";
+}
+
+function geoiq_form_alter(&$form, $form_state, $form_id){
+
+  $content_types = variable_get('geoiq_node_types', array());
+
+  $add_GeoIQ = array_map("addNodeForm", $content_types);
+
+  if (in_array($form_id, $add_GeoIQ)){
+   $form['geoiq'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('GeoIQ'),  
+    '#description' => t('Search and add a map to the entry. Instructions: Click on the button to add the map. The markup should be inserted at the end of your entry. IMPORTANT: you MUST select Input Format "FULL HTML" for the map to render properly.  If the markup doesn\'t appear, copy and paste the code found below the result area'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['geoiq']['geoiq_search'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Search'),
+    '#description' => t('Search for a map using GeoIQ API.'), 
+    '#id' => 'geoiq-search', 
+  );
+
+
+  $form['geoiq']['geoiq_submit'] = array(
+    '#type' => 'markup',
+    '#value' => "<p><input type='button' id='geoiq-submit' value='Search'/><img id='geoiq-ajax-spinner' style='visibility:hidden;' src='" . base_path() . drupal_get_path('module', 'geoiq') . "/ajax-loader.gif' /></p></p>",
+  );
+
+    $form['geoiq']['results'] = array(
+    '#value' => "<fieldset><legend>Results</legend><div id='geoiq-results'></div></fieldset>",
+  );
+
+  $form['geoiq']['geoiq_map_markup'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Map Markup',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#weight' => 15,
+    );
+
+    $form['geoiq']['geoiq_map_markup']['geoiq_map_code'] = array(
+      '#type' => 'markup',
+      '#value' => '<textarea id="geoiq-map-code"></textarea>',
+      '#description' => t('Markup will appear once you have selected a map. You can copy and paste this code.'),
+    );
+
+  }
+}
+
+
+/**
+ * Implemention of hook_init()
+ */
+
+function geoiq_init(){
+  drupal_add_js(drupal_get_path('module', 'geoiq') . '/geoiq.js');
+  drupal_add_css(drupal_get_path('module', 'geoiq') . '/geoiq.css');
+}
+
+ 
+/**
+ * GeoCommons API 
+ */
+
+/**
+ * GeoCommons Search functions
+ */
+function geocommons_search_js($query = ''){
+  $localTesting = FALSE;
+  
+  $result = array("status" => TRUE, 'data' => '');
+ 
+  $query = prepareQuery($query);
+
+  $server = variable_get('geoiq_server_address', 'http://www.geocommons.com');
+  $server = str_replace("www", "maker", $server);
+
+  $url =  $server . '/searches.atom?' . $query;
+
+    if ($localTesting){
+      include 'mexico.php';
+      $atom = new SimpleXMLElement($tempXml);
+      $response = renderResponseAtom($atom, $query, $url);
+      //$result['data']= "url: $url result: " . $search_result;
+      $result['data'] = $response;
+
+      return drupal_json($result);
+  }
+  
+  
+  try {
+    $search_result = file_get_contents($url);
+    $atom = new SimpleXMLElement($search_result);
+    $response = renderResponseAtom($atom, $query, $url);
+    $result['data'] = $response;
+  }
+  catch (Exception $e)
+  {
+    watchdog("geoiq", "Exception while requesting  %url . Exception message: %exception " , array( '%url' => $url,  '%exception' => $e->getMessage()), WATCHDOG_ERROR );
+    
+    $result['status'] = FALSE;
+    $result['data'] = "There was an error in the request. Please try again. If errors persists, please inform the site administrator.";
+  }
+
+  return drupal_json($result);
+}
+
+
+function prepareQuery($query){
+  
+  $query = str_replace(" ", "+", $query);
+ 
+  $pos = strpos($query, "page=");
+  if($pos === FALSE){
+    $query = "query=" . $query;
+  }
+  else{
+     $query = str_replace("^", "&", $query);
+  }
+
+
+  return $query;
+}
+
+
+function renderResponseAtom($atom, $query, $url){
+  $openSearch = $atom->children('http://a9.com/-/spec/opensearch/1.1/');
+  $result = "<div id='geocommons-search-results'>";
+
+  //title area
+  $result .= "<div id='geocommons-results-title'>". $atom->title . "</div>";
+  $result .= "<div id='geocommons-results-total'> Total Results: ". $openSearch->totalResults . "</div>";
+
+  //entries
+  $result .= renderEntriesAtom($atom);
+
+  //navigation links
+  $result .= '<div class="geocommons-results-navigation" style="width:100%;">';
+
+  $previous = getNavParams($atom, 'previous');
+  if ($previous != ""){
+    $result .= "<span onclick=\"getResults('" . $previous . "')\" style='text-decoration:underline; cursor:pointer;text-align:right;margin-right:50px;'>Previous </span>";
+  }
+
+  $next = getNavParams($atom, 'next'); 
+  if ($next != ""){
+    $result .= "<span onclick=\"getResults('" . $next . "')\" style='text-decoration:underline; cursor:pointer;text-align:left;margin-left:50px;'>Next </span>";
+ }
+  $result .="</div>";  //for navigation links
+ 
+  $result .= "</div>"; //for all results
+
+  return $result;
+}
+
+function getNavParams($atom, $rel){
+  $result = "";
+  
+  $link = findLink($atom, $rel);
+  
+  if ($link != null){
+    $url = $link['href'];
+    preg_match('/\?(.*)?/', $url, $matches);
+    $result = $matches[1];
+    $result = str_replace('&', '^', $result);
+  }
+
+  return $result;
+}
+
+
+function findLink($atom, $rel){
+  $result = null;
+  foreach($atom->link as $link){
+    if($link['rel'] == $rel){
+        $result = $link;
+    }
+  }
+  return $result;
+}
+
+
+function renderEntriesAtom($atom){
+  $result = "<div id='geocommons-results-items'><ul id='geocommons-results-items-list'>";
+  foreach($atom->entry as $item){
+    $result .="<li class='geocommons-results-item'>";
+
+    //title
+    $result .="<span class='geocommons-results-item-title'><a href='" . $item->id . "' target='_blank'>". $item->title . "</a></span><br />";
+    
+    //description
+    $result .="<span class='geocommons-results-item-description'>" . $item->content . "</span></br >";
+    
+    //tags
+    $result .= "<br /><span class='geocommons-results-item-tags'>tagged: ";
+
+    foreach($item->category as $category){
+      $result .= "<a href='" . $category['scheme'] . "/" . $category['term'] . "' target='_blank'>" . $category['term'] . "</a> " ;
+    }
+    $result .= "</span><br />";
+
+    //Created by
+    $result .= "<span class='geocommons-results-items-author'>created by: <a href='". $item->author->uri . "' target='_blank'>" . $item->author->name . "</a></span><br />";
+
+    //Add map button
+    preg_match("/maps\/(.*)$/", $item->id, $matches);
+    $id = $matches[1];
+    $result .="<span class='goecommons-results=items'><input type='button' class='geocommons-button-add-map' id=123 onclick=\"embedMap(" . $id . ");\" value='add map'/></span>";
+
+    $result .="</li>";
+  }
+
+  $result .= "</ul></div>";
+
+  return $result;
+}
+
+
+/**
+ * GeoCommons insert Feed Function
+ */
+
+function geocommons_add_js($feed = ''){
+  $result = array('status' => TRUE, 'data' => '');
+
+  $feed = str_replace("|", "/", $feed);
+  
+  if (!_isURL($feed)){
+     $result['status'] = FALSE;
+     $result['data'] = 'Please enter a correct URI.'; 
+      return drupal_json($result);
+  }
+
+  $server = variable_get('geoiq_server_address', "http://www.geocommons.com");
+    
+  $url =  str_replace("www", "finder", $server) . "/overlays.xml";
+
+  $username = variable_get("geoiq_user_name", "error");
+  $password = variable_get("geoiq_password", "error");
+
+  if ($username == "error" || $password == "error"){
+     $result['status'] = FALSE;
+     $result['data'] = 'Please enter your user name and password in GeoIQ: Credentials settings page.'; 
+      return drupal_json($result);
+  }
+
+  $data = "overlay[wild_url]=" .  $feed;
+
+  try{
+    $content = addFeed($url, $username, $password, $data);
+  }
+  catch(Exception $e){
+      watchdog("geoiq", "Exception while adding a feed  %url . Exception message: %exception " , array( '%url' => $url,  '%exception' => $e->getMessage()), WATCHDOG_ERROR );
+    
+    $result['status'] = FALSE;
+      $result['data'] = "There was an error while adding the feed. Check your GeoIQ: Credentials settings paying especial attention to the server address. ";
+       return drupal_json($result);
+  }
+
+  $output .= "";
+  $output .= "feed: $feed ; url: $url; $username:$password; data: $data;   ";
+
+
+  $raw = $content['data'];
+
+   //CURL error: return 
+  if (!$content['status']){
+    return drupal_json($content);
+  }
+
+  //Message from HTTP
+  $content = httpStatusCode($content);
+
+  $result['data'] = $output . $content['status'] . $content['data'] . $raw;
+
+  return drupal_json($content);
+}
+
+
+function _isURL($url = NULL) {
+        if($url==NULL) return false;
+
+        $protocol = '(http://|https://)';
+        $allowed = '([a-z0-9]([-a-z0-9]*[a-z0-9]+)?)';
+
+        $regex = "^". $protocol . // must include the protocol
+                         '(' . $allowed . '{1,63}\.)+'. // 1 or several sub domains with a max of 63 chars
+                         '[a-z]' . '{2,6}'; // followed by a TLD
+        if(eregi($regex, $url)==true) return true;
+        else return false;
+}
+
+
+function httpStatusCode($content){
+  $tokens = explode(" ", $content['data']);
+  $statusCode = $tokens[1];
+
+  switch($statusCode){
+    case 201:
+    case 200;
+    $content['data'] = "Success. Your feed was successfully added to GeoIQ.";
+    break;
+
+  case 302:
+    $content['status'] = false;
+    $content['data'] = "Warning. The feed already exists in GeoIQ";
+    break;
+
+  case  401:
+    $content['status'] = false;
+    $content['data'] = "Error. Please check that your username and password GeoIQ: Credential settings are correct";
+    break;
+
+  case 403:
+    $content['status'] = false;
+    $content['data'] = "Error. Request denied by server.";
+    break;
+
+  case 404:
+    $content['status'] = false;
+    $content['data'] = "Error. Please check your server address in GeoIQ: Credentials settings.";
+    break;
+
+  case 500:
+    $content['status'] = false;
+    $content['data'] = "Error. Check your GeoIQ Credentials settings. Check four feed. If everything seems fine, please contact the Fortious One's support team.";
+     break;
+     
+  case 502:
+    $content['status'] = false;
+     $content['data'] = "Error. The server is down for maintenance. Please try again later.";
+     break;
+
+   case 503:
+    $content['status'] = false;
+    $content['data'] = "Error. Heavy traffic on the server. Please try again latter.";
+    break;
+
+  default:
+    $content['status'] = false;
+    $content['data'] = "Error. There was a problem with your request. Check your GeoIQ Credential settings";
+    break;
+  }
+  return $content;
+}
+
+function addFeed($url, $username, $password, $data){
+  $result = array();
+
+
+  $crl = curl_init($url);
+
+  curl_setopt($crl, CURLOPT_HEADER, 1); 
+  curl_setopt($crl, CURLOPT_POST, 1);
+  curl_setopt($crl, CURLOPT_HTTPAUTH , CURLAUTH_BASIC);
+  curl_setopt($crl, CURLOPT_USERPWD,"$username:$password");
+  curl_setopt($crl, CURLOPT_POSTFIELDS, $data);
+  curl_setopt($crl, CURLOPT_RETURNTRANSFER, 1); 
+
+  $result['status'] = TRUE;
+  $result['data'] =  curl_exec($crl);
+
+  if (curl_errno($crl))
+  {
+    $result['status'] = FALSE;
+    $result['data'] = "ERROR: " . curl_error($crl);
+  }
+
+  curl_close($crl);
+
+  return $result;
+}
+

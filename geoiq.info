@@ -1,0 +1,9 @@
+; $Id$
+
+name = GeoIQ
+description = Add GeoIQ maps and add feeds to GeoIQ
+core = 6.x
+
+package = GeoIQ
+
+

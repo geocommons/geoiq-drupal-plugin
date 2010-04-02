@@ -1,0 +1,33 @@
+
+#geocommons-results-items ul { 
+  list-style-type: none;
+}
+
+.geocommons-results-item {
+  border-style: solid; 
+  border-width: 2px;
+  border-color: #01B513;
+  background-color: white;
+}
+.geocommons-results-item-title a:link { 
+  color: #00406B; 
+  font-size: 14px;
+  font-weight: bold;
+}
+.geocommons-results-item-title  a:visited { 
+  color: #00406B; 
+  font-size: 14px;
+  font-weight: bold;
+}
+.geocommons-results-item-description { 
+  font-size: smaller;
+}
+.geocommons-results-item-tags {
+  font-size: smaller;
+}
+
+.geocommons-results-items-author{
+  font-size: smaller;
+}
+
+
