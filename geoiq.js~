@@ -58,7 +58,7 @@ if (Drupal.jsEnabled){
  function createServiceURL(boundary, path, data){
   var result = "";
   var href = location.href;
-  var pathRegex = new RegExp("^(.*)\/" + boundary + "/");
+  var pathRegex = new Regex("^(.*)\/" + boundary + "/");
   var base = href.match(pathRegex);
   var result = base[1] + path;
   result += "/" + data;
