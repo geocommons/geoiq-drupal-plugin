@@ -3,7 +3,7 @@
 
 
 /**
- * Implention of hook_perm()
+ * Implemention of hook_perm()
  */
 
 function geoiq_perm(){ 

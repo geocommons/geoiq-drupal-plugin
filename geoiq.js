@@ -86,7 +86,7 @@ if (Drupal.jsEnabled){
    
  }
 
- function stopAjaxSpinner(data){
+ function showInsertFeedback(data){
       $("#geoiq-feed-message").css('border-style', 'solid');
       $("#geoiq-feed-message").css('border-width', '2px');
       $("#geoiq-feed-message").css('border-color', '#2C8DC8');
