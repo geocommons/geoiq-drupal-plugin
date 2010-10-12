@@ -1,0 +1,79 @@
+h1. GeoIQ Drupal Module
+
+The GeoIQ module adds the capabilities to adding GeoCommon maps to Drupal content type. It also allows the site administrator to add any GeoRSS and KML feed that they wish.
+
+h2. Directory contents
+
+The directory contains the files needed for the module. Also included are two files, mexico.atom and mexico.php used to test the search capabilities when the server is not available.
+
+h2. Dependencies:
+
+This is a Drupal 6.x module that requires having PHP 5.2 or higher and having php_curl extension turned on in php.ini. Check your phpinfo() page to see if it is already installed. If not, open php.ini and uncomment extension=php_curl.dll. 
+
+h2. Installation
+
+#  Place the GeoIQ directory in _sites/all/modules._ If the _sites/all/module_ directory doesn_t exist, create it and place the GeoIQ folder there.
+# On your Drupal site,  go to Adminster	->Site Building ->Modules. Find GeoIQ, check  the _enabled_ checkbox, and click _Save Configuration_ at the bottom of the modules page.
+
+h2. Configuration
+
+For GeoIQ to properly work, you must have the module properly configured.
+
+# Set Permissions. 
+** Go to Adminster->User Management->Permissions and find the permissions section for GeoIQ. There are 3 possible permissions:  _GeoIQ add map to content_,_ GeoIQ administer feeds_, and _GeoIQ administer settings._ 
+** _GeoIQ administer settings_ will give the user rights to set the server address for the GeoIQ API REST service, the user name and password. It also has the power to choose which content types will be able to search and add maps. Only give this right to site administrators.
+** _GeoIQ administer feed_ will give the user the opportunity to add kml or GeoRSS feeds  as data sources for GeoCommons.  Since this can affect the GeoCommons account of the user whose credentials are being used to access the API, you should grant this right to a few trusted people as well.
+** _GeoIQ add map to content_ gives the user the opportunity to search for maps and add it to their content. The role that has this permissions must be able to post Full HTML input type since this is necessary t o be able to render the map.
+# Set GeoIQ: Credentials
+** Go to Adminster->Site Configuration->GeoIQ: Credentials to set the server address where the GeoIQ API REST server is located, the user name and password. The user name and password are the same as the onaes that one uses to log into GeoCommons. 
+* a) Server address
+** The module should enter automatically http://geocommons.com  as the server address, but you can modify it. Make sure that you don_t enter a trailing slash at the end of the address. Doing so will can cause errors.
+* b) User name and password.
+** These are the same user name and password that you use to log into GeoCommons. These are the credentials that will be used when adding KML or GeoRSS feeds as data sources to GeoCommons. 
+* c) Updating the Credentials settings page
+** If you update any part of this page, you must re-enter your password.  The password is not loaded automatically into the form for security reasons. Again, you must re-enter it every time you update any part of this settings page.
+# Add GeoIQ to Content Types
+
+Go to Administer->Site Configuration->GeoIQ:  Content Types.  Select the content types where you wish to have the ability to search for GeoCommons maps and to add them to the content.  Click “Save Configuration” when you are done.
+
+h2. Using the Module
+
+Adding a GeoCommons map to Drupal content:
+
+Assuming that the module has been configured correctly and the right permissions have been granted to the correct roles:
+
+# Click on Create content. Then click on the content type that can add a GeoCommons maps.
+# In the add/edit page, look below the body field for a section called GeoIQ. Click to expand it.
+# Enter a search term in the search field, and click on Search.  A result are should be filled.
+# Click on the  _add map_ button. This should add automatically the markup code to add this map at the end of the content of the body.  You can also copy and paste the markup at in the Markup area below the results.
+# IMPORTANT: Click on Input Format and select Full HTML.  If you don_t do it, THE MAP WILL NOT RENDER. You will only see the markup as text.
+
+h2. Troubleshooting
+
+*Problem:* I don_t see the map. When I click Preview or Save, I only see the markup text. 
+
+*Solution:* Click Edit. Below the body text, look for Input Format. Click to expand it. Select Full HTML.  If you don_t see it, then the site administrator needs to grant users with your role the ability to post using Full HTML.
+
+*Problem:* When I click Save or Preview and I see my content, I get a javascript error message. When I examine it, I realize that it is part of the map markup.
+
+*Solution:*  Change the Post Trim setting either to exclude the map or to allow it in the teaser. That will fix future problems. For this specific content, you will need to place @<! break -->@ either before or below the map markup to that the teaser text won_t cut it in half.
+
+Adding a KML or GeoRSS feed as a data source to GeoCommons:
+
+Assuming that the values in GeoIQ: Credentials have been entered correctly:
+
+# Go to Administer->Site Configuration->GeoIQ Add Feeds
+# Enter the address of the KML or GeoRSS feed that you are trying to add in the Enter Feed field
+# Click on Insert Feed. You will get a message telling you if you were successful or if there were errors.
+
+h2. Data Troubleshooting
+
+If you are having trouble adding a feed, check the following:
+
+* Is the feed address correct?
+* Does the feed have location data? Is the location data missing?
+* Is the server address entered correctly in the GeoIQ: Credentials settings page?
+* Is the user name and password the correct ones?
+
+If everything looks fine and you are still having problems, please contact the support@fortiusone.com.
+
