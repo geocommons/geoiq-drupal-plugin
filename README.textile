@@ -34,7 +34,7 @@ For GeoIQ to properly work, you must have the module properly configured.
 ** If you update any part of this page, you must re-enter your password.  The password is not loaded automatically into the form for security reasons. Again, you must re-enter it every time you update any part of this settings page.
 # Add GeoIQ to Content Types
 
-Go to Administer->Site Configuration->GeoIQ:  Content Types.  Select the content types where you wish to have the ability to search for GeoCommons maps and to add them to the content.  Click “Save Configuration” when you are done.
+Go to Administer->Site Configuration->GeoIQ:  Content Types.  Select the content types where you wish to have the ability to search for GeoCommons maps and to add them to the content.  Click _Save Configuration_ when you are done.
 
 h2. Using the Module
 
